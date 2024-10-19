@@ -60,7 +60,7 @@ SDL_Surface* surface_from_file(const char* file_path) {
 void render_char(SDL_Renderer* renderer, SDL_Texture* font, char c, Vec2f pos, Uint32 color, float scale) {
 	const size_t index = c - 32;
 	const size_t col = index % FONT_COLS;
-	const size_t row = index / FONT_ROWS;
+	const size_t row = index / FONT_COLS;
 
 	const SDL_Rect src = {
 		.x = col * FONT_CHAR_WIDTH,
@@ -76,7 +76,11 @@ void render_char(SDL_Renderer* renderer, SDL_Texture* font, char c, Vec2f pos, U
 		.h = (int) floorf(FONT_CHAR_HEIGHT * scale),
 	};
 
-	scc(SDL_SetTextureColorMod(font, (color >> (8 * 2)) & 0xff, (color >> (8 * 1)) & 0xff, (color >> (8 * 0)) & 0xff));
+	scc(SDL_SetTextureColorMod(
+		font, 
+		(color >> (8 * 0)) & 0xff, 
+		(color >> (8 * 1)) & 0xff, 
+		(color >> (8 * 2)) & 0xff));
 
 	scc(SDL_RenderCopy(renderer, font, &src, &dst));
 }
