@@ -15,6 +15,7 @@
 #define FONT_ROWS 7
 #define FONT_CHAR_WIDTH (FONT_WIDTH / FONT_COLS)
 #define FONT_CHAR_HEIGHT (FONT_HEIGHT / FONT_ROWS)
+#define FONT_SCALE 5
 
 void scc(int code) {
 	if (code < 0) {
@@ -50,25 +51,48 @@ SDL_Surface* surface_from_file(const char* file_path) {
 	const Uint32 bmask = 0x00ff0000;
 	const Uint32 amask = 0xff000000;
 #endif
-
 	const int depth = 32;
 	const int pitch = 4 * width;
 
 	return scp(SDL_CreateRGBSurfaceFrom((void*)pixels, width, height, depth, pitch, rmask, gmask, bmask, amask));
 }
 
+<<<<<<< HEAD
+#define ASCII_DISPLAY_LOW 32
+#define ASCII_DISPLAY_HIGH 126
+=======
 void render_char(SDL_Renderer* renderer, SDL_Texture* font, char c, Vec2f pos, Uint32 color, float scale) {
 	const size_t index = c - 32;
 	const size_t col = index % FONT_COLS;
-	const size_t row = index / FONT_COLS;
+	const size_t row = index / FONT_ROWS;
+>>>>>>> parent of 48c4449 (This is a Text Editor in C using SDL(Simple DirectMedia Layer) library.)
 
-	const SDL_Rect src = {
-		.x = col * FONT_CHAR_WIDTH,
-		.y = row * FONT_CHAR_HEIGHT,
-		.w = FONT_CHAR_WIDTH,
-		.h = FONT_CHAR_HEIGHT,
-	};
+typedef struct {
+	SDL_Texture* spritesheet;
+	SDL_Rect glyph_table[ASCII_DISPLAY_HIGH - ASCII_DISPLAY_LOW + 1];
+} Font;
 
+Font font_load_from_file(SDL_Renderer* renderer, const char* file_path) {
+	Font font = { 0 };
+	SDL_Surface* font_surface = surface_from_file(file_path);
+	font.spritesheet = scp(SDL_CreateTextureFromSurface(renderer, font_surface));
+	SDL_FreeSurface(font_surface);
+
+	for (size_t ascii = ASCII_DISPLAY_LOW; ascii <= ASCII_DISPLAY_HIGH; ascii++) {
+		const size_t index = ascii - ASCII_DISPLAY_LOW;
+		const size_t col = index % FONT_COLS;
+		const size_t row = index / FONT_COLS;
+		font.glyph_table[index] = (SDL_Rect) {
+			.x = col * FONT_CHAR_WIDTH,
+			.y = row * FONT_CHAR_HEIGHT,
+			.w = FONT_CHAR_WIDTH,
+			.h = FONT_CHAR_HEIGHT,
+		};
+	}
+	return font;
+}
+
+void render_char(SDL_Renderer* renderer, Font* font, char c, Vec2f pos, float scale) {
 	const SDL_Rect dst = {
 		.x = (int) floorf(pos.x),
 		.y = (int) floorf(pos.y),
@@ -76,23 +100,60 @@ void render_char(SDL_Renderer* renderer, SDL_Texture* font, char c, Vec2f pos, U
 		.h = (int) floorf(FONT_CHAR_HEIGHT * scale),
 	};
 
-	scc(SDL_SetTextureColorMod(
-		font, 
-		(color >> (8 * 0)) & 0xff, 
-		(color >> (8 * 1)) & 0xff, 
-		(color >> (8 * 2)) & 0xff));
+<<<<<<< HEAD
+	assert(c >= ASCII_DISPLAY_LOW);
+	assert(c <= ASCII_DISPLAY_HIGH);
+	const size_t index = c - ASCII_DISPLAY_LOW;
+	scc(SDL_RenderCopy(renderer, font -> spritesheet, &font -> glyph_table[index], &dst));
+=======
+	scc(SDL_SetTextureColorMod(font, (color >> (8 * 2)) & 0xff, (color >> (8 * 1)) & 0xff, (color >> (8 * 0)) & 0xff));
 
 	scc(SDL_RenderCopy(renderer, font, &src, &dst));
+>>>>>>> parent of 48c4449 (This is a Text Editor in C using SDL(Simple DirectMedia Layer) library.)
 }
 
-void render_text(SDL_Renderer* renderer, SDL_Texture* font, const char *text, Vec2f pos, Uint32 color, float scale) {
-	size_t n = strlen(text);
+void render_text_sized(SDL_Renderer* renderer, Font* font, const char* text, size_t text_size, Vec2f pos, Uint32 color, float scale) {
+	scc(SDL_SetTextureColorMod(
+		font->spritesheet,
+		(color >> (8 * 0)) & 0xff,
+		(color >> (8 * 1)) & 0xff,
+		(color >> (8 * 2)) & 0xff));
+
+	scc(SDL_SetTextureAlphaMod(font->spritesheet, (color >> (8 * 3)) & 0xff));
 
 	Vec2f pen = pos;
-	for (size_t i = 0; i < n; i++) {
-		render_char(renderer, font, text[i], pen, color, scale);
+	for (size_t i = 0; i < text_size; i++) {
+		render_char(renderer, font, text[i], pen, scale);
 		pen.x += FONT_CHAR_WIDTH * scale;
 	}
+}
+
+void render_text(SDL_Renderer* renderer, Font* font, const char *text, Vec2f pos, Uint32 color, float scale) {
+	render_text_sized(renderer, font, text, strlen(text), pos, color, scale);
+}
+
+#define BUFFER_CAPACITY 1024
+
+char buffer[BUFFER_CAPACITY];
+size_t buffer_cursor = 0;
+size_t buffer_size = 0;
+
+#define UNHEX(color) \
+	((color) >> (8 * 0)) & 0xFF, \
+	((color) >> (8 * 1)) & 0xFF, \
+	((color) >> (8 * 2)) & 0xFF, \
+	((color) >> (8 * 3)) & 0xFF
+
+void render_cursor(SDL_Renderer* renderer, Uint32 color) {
+	const SDL_Rect rect = {
+		.x = (int)floorf(buffer_cursor * FONT_CHAR_WIDTH * FONT_SCALE),
+		.y = 0,
+		.w = FONT_CHAR_WIDTH * FONT_SCALE,
+		.h = FONT_CHAR_HEIGHT * FONT_SCALE,
+	};
+
+	scc(SDL_SetRenderDrawColor(renderer, UNHEX(color)));
+	scc(SDL_RenderFillRect(renderer, &rect));
 }
 
 int main(void) {
@@ -100,8 +161,7 @@ int main(void) {
 
 	SDL_Window *window = scp(SDL_CreateWindow("Aditor", 100, 100, 800, 600, SDL_WINDOW_RESIZABLE));
 	SDL_Renderer *renderer = scp(SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED));
-	SDL_Surface *font_surface = surface_from_file("src/charmap-oldschool_white.png");
-	SDL_Texture *font_texture = scp(SDL_CreateTextureFromSurface(renderer, font_surface));
+	Font font = font_load_from_file(renderer, "src/charmap-oldschool_white.png");
 
 	bool quit = false;
 	while (!quit) {
@@ -112,13 +172,38 @@ int main(void) {
 				quit = true;
 			}
 						 break;
+
+			case SDL_KEYDOWN: {
+				switch (event.key.keysym.sym) {
+				case SDLK_BACKSPACE: {
+					if (buffer_size > 0) {
+						buffer_size -= 1;
+					}
+				}
+								   break;
+				}
+			}
+							break;
+
+			case SDL_TEXTINPUT: {
+				size_t text_size = strlen(event.text.text);
+				const size_t free_space = BUFFER_CAPACITY - buffer_size;
+				if (text_size > free_space) {
+					text_size = free_space;
+				}
+				memcpy(buffer + buffer_size, event.text.text, text_size);
+				buffer_size += text_size;
+				buffer_cursor = buffer_size;
+			}
+							  break;
 			}
 		}
 
 		scc(SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0));
 		scc(SDL_RenderClear(renderer));
 
-		render_text(renderer, font_texture, "Hello, World!", vec2f(0.0, 0.0), 0xFF0000FF, 5.0f);
+		render_text_sized(renderer, &font, buffer, buffer_size, vec2f(0.0, 0.0), 0xFFFFFFFF, FONT_SCALE);
+		render_cursor(renderer, 0xFFFFFFFF);
 
 		SDL_RenderPresent(renderer);
 	}
