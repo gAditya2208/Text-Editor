@@ -144,12 +144,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\buffer.c" />
+    <ClCompile Include="src\editor.c" />
     <ClCompile Include="src\la.c" />
     <ClCompile Include="src\main.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\buffer.h" />
+    <ClInclude Include="src\editor.h" />
     <ClInclude Include="src\la.h" />
     <ClInclude Include="src\stb_image.h" />
   </ItemGroup>
